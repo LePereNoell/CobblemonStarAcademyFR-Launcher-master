@@ -1,0 +1,42 @@
+{
+    "name": "cobblemon-star-academy-fr-launcher",
+    "preductname": "cobblemon-star-academy-fr-launcher",
+    "version": "1.0.0",
+    "description": "Launcher Minecraft Cobblemon Star Academy FR",
+    "main": "src/app.js",
+    "author": {
+        "name": "Le Père Noël"
+    },
+    "url": "https://www.cobblemonstaracademyfr.adkynet.fr/",
+    "scripts": {
+        "start": "cross-env-shell NODE_ENV=dev electron .",
+        "dev": "cross-env-shell DEV_TOOL=open nodemon --exec npm start",
+        "build": "node build.js --obf=true --build=platform",
+        "icon": "node build.js --icon=https://i.ibb.co/5WYcpCnF/bdaff559-f4bc-47e1-a72c-64dd19eb6488.png"
+    },
+    "license": "CCANC",
+    "nodemonConfig": {
+        "ext": "js,html,css",
+        "ignore": "**/test"
+    },
+    "dependencies": {
+        "electron-updater": "^6.1.8",
+        "minecraft-java-core": "^3.10.4",
+        "node-bdd": "^2.0.4",
+        "node-fetch": "^2.7.0",
+        "xml-js": "^1.6.11"
+    },
+    "devDependencies": {
+        "cross-env": "^7.0.3",
+        "electron": "^30.0.9",
+        "electron-builder": "^24.13.3",
+        "javascript-obfuscator": "^4.1.0",
+        "jimp": "^0.22.12",
+        "nodemon": "^3.1.2",
+        "png2icons": "^2.0.1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/LePereNoell/CobblemonStarAcademyFR-Launcher.git"
+    }
+}
