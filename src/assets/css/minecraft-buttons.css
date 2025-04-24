@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+/* --------------------------------------------
+   Variables de couleurs Minecraft
+--------------------------------------------- */
+:root {
+    --mc-grass: #7cbb4f;
+    --mc-dirt: #8b5a2b;
+    --mc-stone: #7a7a7a;
+    --mc-wood: #a67c52;
+    --mc-glow: rgba(255, 255, 255, 0.5);
+    --mc-font: 'Press Start 2P', cursive;  /* police pixelisée */
+  }
+  
+  /* --------------------------------------------
+     Base du bouton Minecraft
+  --------------------------------------------- */
+  .mc-button {
+    display: inline-block;
+    font-family: var(--mc-font);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.75rem 1.5rem;
+    color: white;
+    background: var(--mc-stone);
+    border: 4px solid var(--mc-dirt);
+    border-radius: 2px;
+    box-shadow:
+      inset 0 0 0 2px var(--mc-dirt),
+      0 4px 0 0 var(--mc-dirt),
+      0 6px 6px rgba(0,0,0,0.4);
+    cursor: pointer;
+    user-select: none;
+    transition: transform .1s, box-shadow .1s;
+  }
+  
+  /* --------------------------------------------
+     Variantes de couleur
+  --------------------------------------------- */
+  .mc-button--grass {
+    background: var(--mc-grass);
+    border-color: var(--mc-dirt);
+    box-shadow:
+      inset 0 0 0 2px var(--mc-dirt),
+      0 4px 0 0 var(--mc-dirt),
+      0 6px 6px rgba(0,0,0,0.4);
+  }
+  .mc-button--wood {
+    background: var(--mc-wood);
+    border-color: var(--mc-dirt);
+    box-shadow:
+      inset 0 0 0 2px var(--mc-dirt),
+      0 4px 0 0 var(--mc-dirt),
+      0 6px 6px rgba(0,0,0,0.4);
+  }
+  
+  /* --------------------------------------------
+     Effet au survol
+  --------------------------------------------- */
+  .mc-button:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 0 0 2px var(--mc-dirt),
+      0 6px 0 0 var(--mc-dirt),
+      0 8px 8px rgba(0,0,0,0.5);
+  }
+  .mc-button:active {
+    transform: translateY(0);
+    box-shadow:
+      inset 0 0 0 2px var(--mc-dirt),
+      0 2px 0 0 var(--mc-dirt),
+      0 3px 3px rgba(0,0,0,0.3);
+  }
+  
+  /* --------------------------------------------
+     Lueur “enchanted” (optionnelle)
+  --------------------------------------------- */
+  .mc-button--enchant {
+    position: relative;
+    overflow: hidden;
+  }
+  .mc-button--enchant:before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, var(--mc-glow) 0%, transparent 70%);
+    animation: pulse 2s infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse {
+    0%   { transform: scale(0.8) rotate(0deg); opacity: 0.6; }
+    50%  { transform: scale(1.1) rotate(180deg); opacity: 1; }
+    100% { transform: scale(0.8) rotate(360deg); opacity: 0.6; }
+  }
+  
