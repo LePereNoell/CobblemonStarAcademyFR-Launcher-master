@@ -1,7 +1,7 @@
 {
     "name": "cobblemon-star-academy-fr-launcher",
     "preductname": "cobblemon-star-academy-fr-launcher",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Launcher Minecraft Cobblemon Star Academy FR",
     "main": "src/app.js",
     "author": {
