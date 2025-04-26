@@ -1,4 +1,4 @@
-// index.js (renderer pour la splash)
+// js/index.js (renderer pour la splash)
 
 const { ipcRenderer, shell } = require('electron');
 const os                      = require('os');
@@ -29,7 +29,7 @@ class Splash {
         const theme        = configClient?.launcher_config?.theme || 'auto';
         const isDarkTheme  = await ipcRenderer.invoke('is-dark-theme', theme);
         document.body.className = isDarkTheme ? 'dark global' : 'light global';
-        if (process.platform === 'win32') {
+        if (os.platform() === 'win32') {
           ipcRenderer.send('update-window-progress-load');
         }
         this.startAnimation();
@@ -48,7 +48,7 @@ class Splash {
     ];
     const splash = splashes[Math.floor(Math.random() * splashes.length)];
 
-    this.splashMessage.textContent          = splash.message;
+    this.splashMessage.textContent         = splash.message;
     this.splashAuthor.children[0].textContent = `@${splash.author}`;
 
     await sleep(100);
@@ -90,9 +90,7 @@ class Splash {
         progress: progress.transferred,
         size:     progress.total
       });
-      // Logging et affichage progress
-      logger.logDownloadProgress(progress.transferred, progress.total, progress.deltaTime || 0);
-      this.setProgress(progress.transferred, progress.total);
+      logger.logDownloadProgress(progress.transferred, progress.total, progress.delta); // ou utilisez setProgress
     });
 
     ipcRenderer.on('update-not-available', () => {
@@ -198,16 +196,16 @@ class Splash {
   }
 }
 
-// Wrapper fetch universel avec AbortController + log
+// Wrapper fetch universel avec AbortController et log
 async function fetchWithLogging(url, options = {}) {
-  const { timeoutMs = 20000, ...fetchOpts } = options;
   const start = Date.now();
-  logger.info(`[FETCH-START] ${url}`);
+  logger.info(`[FETCH-START]  ${url}`);
+  const timeoutMs = options.timeoutMs ?? 20000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(url, { ...fetchOpts, signal: controller.signal });
+    const res = await fetch(url, { ...options, signal: controller.signal });
     logger.info(`[FETCH-STATUS] ${url} → ${res.status}`);
     const ct   = res.headers.get('content-type') || '';
     const data = ct.includes('application/json')
@@ -217,14 +215,14 @@ async function fetchWithLogging(url, options = {}) {
     return data;
   } catch (err) {
     if (err.name === 'AbortError') {
-      logger.error(`[FETCH-TIMEOUT] ${url} > ${timeoutMs}ms`);
+      logger.error(`[FETCH-TIMEOUT]  ${url} dépassé ${timeoutMs}ms`);
     } else {
-      logger.error(`[FETCH-ERROR]   ${url}`, err);
+      logger.error(`[FETCH-ERROR]    ${url}`, err);
     }
     throw err;
   } finally {
     clearTimeout(timer);
-    logger.info(`[FETCH-END] ${url} (${Date.now() - start} ms)`);
+    logger.info(`[FETCH-END]    ${url} (${Date.now() - start} ms)`);
   }
 }
 
@@ -239,5 +237,5 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Démarrage du splash
+// On démarre le splash
 new Splash();
