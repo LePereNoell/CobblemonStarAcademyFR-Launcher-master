@@ -20,6 +20,7 @@ function createWindow() {
     destroyWindow();
     mainWindow = new BrowserWindow({
         title: pkg.preductname,
+        devTools: true,
         width: 1280,
         height: 720,
         minWidth: 980,
@@ -34,6 +35,7 @@ function createWindow() {
         },
     });
     Menu.setApplicationMenu(null);
+    mainWindow.webContents.openDevTools({ mode: 'undocked' });
     mainWindow.setMenuBarVisibility(false);
     mainWindow.loadFile(path.join(`${app.getAppPath()}/src/launcher.html`));
     mainWindow.once('ready-to-show', () => {

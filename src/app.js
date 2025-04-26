@@ -8,6 +8,18 @@ const fs = require('fs');
 const UpdateWindow = require("./assets/js/windows/updateWindow.js");
 const MainWindow = require("./assets/js/windows/mainWindow.js");
 
+const log = require('electron-log');
+log.transports.file.level = 'debug';      // tous les niveaux
+log.transports.console.level = false;     // désactive la console en prod
+
+process.on('uncaughtException', err => {
+    log.error('Exception non gérée (main):', err);
+});
+  
+process.on('unhandledRejection', reason => {
+    log.error('Rejet non géré (main):', reason);
+});
+
 let dev = process.env.NODE_ENV === 'dev';
 
 if (dev) {
@@ -21,8 +33,9 @@ if (dev) {
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else app.whenReady().then(() => {
-    if (dev) return MainWindow.createWindow()
-    UpdateWindow.createWindow()
+    log.info('Electron ready, creating UpdateWindow...');
+    if (dev) return MainWindow.createWindow();
+    UpdateWindow.createWindow();
 });
 
 ipcMain.on('main-window-open', () => MainWindow.createWindow())
@@ -96,12 +109,14 @@ autoUpdater.on('update-downloaded', () => {
     autoUpdater.quitAndInstall();
 });
 
-autoUpdater.on('download-progress', (progress) => {
-    const updateWindow = UpdateWindow.getWindow();
-    if (updateWindow) updateWindow.webContents.send('download-progress', progress);
-})
+autoUpdater.on('download-progress', progress => {
+    log.info('Téléchargement update:', progress);
+    const w = UpdateWindow.getWindow();
+    if (w) w.webContents.send('download-progress', progress);
+});
 
-autoUpdater.on('error', (err) => {
-    const updateWindow = UpdateWindow.getWindow();
-    if (updateWindow) updateWindow.webContents.send('error', err);
+  autoUpdater.on('error', err => {
+    log.error('autoUpdater erreur:', err);
+    const w = UpdateWindow.getWindow();
+    if (w) w.webContents.send('error', err);
 });
