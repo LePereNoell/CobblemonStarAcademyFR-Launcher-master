@@ -1,29 +1,17 @@
 // index.js (renderer pour la splash)
 
-const log = require('electron-log');
-// Configure seulement les transports existants
-if (log.transports.file) {
-  log.transports.file.level    = 'debug';  // trace tout dans renderer.log
-}
-if (log.transports.console) {
-  log.transports.console.level = 'info';   // affiche en DevTools
-}
-
-// Si jamais un transport IPC existe (dans de vieilles versions), on le configure prudemment
-if (log.transports.ipc) {
-  log.transports.ipc.level       = 'debug';
-}
-
 const { ipcRenderer, shell } = require('electron');
-const pkg                     = require('../package.json');
 const os                      = require('os');
-import { config, database }  from './utils.js';
+const pkg                     = require('../package.json');
+const logger                  = require('./utils/logger.js');
+const { config, database }    = require('./utils.js');
 
+// Événements globaux pour capturer erreurs non gérées
 window.addEventListener('error', e => {
-  log.error('Erreur JS non capturée (renderer) :', e.error || e.message);
+  logger.error('Erreur JS non capturée (renderer) :', e.error || e.message);
 });
 window.addEventListener('unhandledrejection', e => {
-  log.error('Rejet non géré (renderer) :', e.reason);
+  logger.error('Rejet non géré (renderer) :', e.reason);
 });
 
 class Splash {
@@ -46,7 +34,7 @@ class Splash {
         }
         this.startAnimation();
       } catch (err) {
-        log.error('Splash DOMContentLoaded erreur :', err);
+        logger.error('Splash DOMContentLoaded erreur :', err);
         this.shutdown('Une erreur est survenue.');
       }
     });
@@ -60,7 +48,7 @@ class Splash {
     ];
     const splash = splashes[Math.floor(Math.random() * splashes.length)];
 
-    this.splashMessage.textContent         = splash.message;
+    this.splashMessage.textContent          = splash.message;
     this.splashAuthor.children[0].textContent = `@${splash.author}`;
 
     await sleep(100);
@@ -80,7 +68,6 @@ class Splash {
   async checkUpdate() {
     this.setStatus('Recherche de mise à jour...');
 
-    // Lance la vérification sans renvoyer d’objet complexe
     ipcRenderer.invoke('update-app')
       .catch(err => this.shutdown(`Erreur de mise à jour :<br>${err.message}`));
 
@@ -103,11 +90,13 @@ class Splash {
         progress: progress.transferred,
         size:     progress.total
       });
+      // Logging et affichage progress
+      logger.logDownloadProgress(progress.transferred, progress.total, progress.deltaTime || 0);
       this.setProgress(progress.transferred, progress.total);
     });
 
     ipcRenderer.on('update-not-available', () => {
-      log.info('Mise à jour non disponible');
+      logger.info('Mise à jour non disponible');
       this.maintenanceCheck();
     });
   }
@@ -122,38 +111,43 @@ class Splash {
   }
 
   async downloadUpdate() {
-    const [owner, repo] = pkg.repository.url
-      .replace(/^(git\+)?https:\/\/github\.com\//, '')
-      .replace(/\.git$/, '')
-      .split('/');
+    try {
+      const [owner, repo] = pkg.repository.url
+        .replace(/^(git\+)?https:\/\/github\.com\//, '')
+        .replace(/\.git$/, '')
+        .split('/');
 
-    const apiRoot      = await fetchWithLogging('https://api.github.com');
-    const repoApi      = apiRoot.repository_url
+      const apiRoot     = await fetchWithLogging('https://api.github.com', { timeoutMs: 20000 });
+      const repoApi     = apiRoot.repository_url
                               .replace('{owner}', owner)
                               .replace('{repo}',  repo);
-    const repoInfo     = await fetchWithLogging(repoApi);
-    const releasesApi  = repoInfo.releases_url.replace('{/id}', '');
-    const releasesList = await fetchWithLogging(releasesApi);
+      const repoInfo    = await fetchWithLogging(repoApi, { timeoutMs: 20000 });
+      const releasesApi = repoInfo.releases_url.replace('{/id}', '');
+      const releasesList = await fetchWithLogging(releasesApi, { timeoutMs: 20000 });
 
-    const assets = releasesList[0]?.assets || [];
-    const osKey  = os.platform() === 'darwin' ? 'mac' : 'linux';
-    const ext    = os.platform() === 'darwin' ? '.dmg' : '.appimage';
-    const latest = this.getLatestReleaseForOS(osKey, ext, assets);
+      const assets = releasesList[0]?.assets || [];
+      const osKey  = os.platform() === 'darwin' ? 'mac' : 'linux';
+      const ext    = os.platform() === 'darwin' ? '.dmg' : '.appimage';
+      const latest = this.getLatestReleaseForOS(osKey, ext, assets);
 
-    if (!latest) {
-      throw new Error('Aucun asset trouvé pour votre OS');
+      if (!latest) {
+        throw new Error('Aucun asset trouvé pour votre OS');
+      }
+
+      this.setStatus(
+        'Mise à jour prête à télécharger<br>' +
+        '<div class="download-update">Télécharger</div>'
+      );
+      document
+        .querySelector('.download-update')
+        .addEventListener('click', () => {
+          shell.openExternal(latest.browser_download_url);
+          this.shutdown('Téléchargement en cours…');
+        });
+    } catch (err) {
+      logger.error('downloadUpdate erreur :', err);
+      this.shutdown(`Erreur téléchargement :<br>${err.message}`);
     }
-
-    this.setStatus(
-      'Mise à jour prête à télécharger<br>' +
-      '<div class="download-update">Télécharger</div>'
-    );
-    document
-      .querySelector('.download-update')
-      .addEventListener('click', () => {
-        shell.openExternal(latest.browser_download_url);
-        this.shutdown('Téléchargement en cours…');
-      });
   }
 
   async maintenanceCheck() {
@@ -165,7 +159,7 @@ class Splash {
       }
       this.startLauncher();
     } catch (err) {
-      log.error('maintenanceCheck failed (renderer) :', err);
+      logger.error('maintenanceCheck failed (renderer) :', err);
       this.shutdown('Pas de connexion internet détectée.');
     }
   }
@@ -204,24 +198,33 @@ class Splash {
   }
 }
 
-// Wrapper fetch universel avec log
-async function fetchWithLogging(url, options = { timeout: 0 }) {
+// Wrapper fetch universel avec AbortController + log
+async function fetchWithLogging(url, options = {}) {
+  const { timeoutMs = 20000, ...fetchOpts } = options;
   const start = Date.now();
-  log.info(`[FETCH-START]  ${url}`);
+  logger.info(`[FETCH-START] ${url}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const res = await fetch(url, options);
-    log.info(`[FETCH-STATUS] ${url} → ${res.status}`);
+    const res = await fetch(url, { ...fetchOpts, signal: controller.signal });
+    logger.info(`[FETCH-STATUS] ${url} → ${res.status}`);
     const ct   = res.headers.get('content-type') || '';
     const data = ct.includes('application/json')
       ? await res.json()
       : await res.text();
-    log.debug(`[FETCH-DATA]   ${url} → ${JSON.stringify(data).slice(0,200)}`);
+    logger.debug(`[FETCH-DATA]   ${url} → ${JSON.stringify(data).slice(0,200)}`);
     return data;
   } catch (err) {
-    log.error(`[FETCH-ERROR]  ${url}`, err);
+    if (err.name === 'AbortError') {
+      logger.error(`[FETCH-TIMEOUT] ${url} > ${timeoutMs}ms`);
+    } else {
+      logger.error(`[FETCH-ERROR]   ${url}`, err);
+    }
     throw err;
   } finally {
-    log.info(`[FETCH-END]    ${url} (${Date.now() - start} ms)`);
+    clearTimeout(timer);
+    logger.info(`[FETCH-END] ${url} (${Date.now() - start} ms)`);
   }
 }
 
@@ -236,5 +239,5 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// On démarre le splash
+// Démarrage du splash
 new Splash();
