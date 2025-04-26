@@ -1,8 +1,3 @@
-/**
- * @author Luuxis
- * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0
- */
-
 // index.js (renderer pour la splash)
 
 const log = require('electron-log');
